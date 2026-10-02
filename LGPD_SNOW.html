@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="snowflake-source" content="cortex-agent-authored" />
+  <title>LGPD + Snowflake: Guia de Conformidade</title>
+  <script type="application/json" id="snowflake-report-metadata">
+  {
+    "generated": "2026-10-01",
+    "intent": "Step-by-step LGPD compliance training using Snowflake governance features: tags, masking policies, row access policies, classification, and audit",
+    "sections": [
+      { "id": "mod1", "title": "Module 1 - LGPD Foundations", "producerNotes": "Conceptual overview, no queries" },
+      { "id": "mod2", "title": "Module 2 - Governance Infrastructure", "producerNotes": "DDL for governance database, schemas, roles" },
+      { "id": "mod3", "title": "Module 3 - Data Discovery", "producerNotes": "CLASSIFY function and system tags" },
+      { "id": "mod4", "title": "Module 4 - Custom Tags", "producerNotes": "LGPD-specific tags with ALLOWED_VALUES" },
+      { "id": "mod5", "title": "Module 5 - Masking Policies", "producerNotes": "Dynamic masking for CPF, email, phone; tag-based masking" },
+      { "id": "mod6", "title": "Module 6 - Row Access Policies", "producerNotes": "Purpose limitation via RAP" },
+      { "id": "mod7", "title": "Module 7 - Data Subject Rights", "producerNotes": "DSAR stored procedures" },
+      { "id": "mod8", "title": "Module 8 - Monitoring and Audit", "producerNotes": "ACCESS_HISTORY, alerts, compliance reports" }
+    ]
+  }
+  </script>
+  <link rel="stylesheet" href="/libs/highlight.js@11.10.0/github.min.css" />
+  <style>
+    :root { color-scheme: light dark; }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+      margin: 0; padding: 0;
+      color: light-dark(#1e293b, #e2e8f0);
+      background: light-dark(#ffffff, #0f172a);
+      line-height: 1.65;
+    }
+
+    h1, h2, h3, h4 { color: light-dark(#0f172a, #f1f5f9); line-height: 1.3; }
+    h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin-top: 0; }
+    h2 { font-size: clamp(1.3rem, 3vw, 1.7rem); border-bottom: 2px solid light-dark(#29b5e8, #29b5e8); padding-bottom: 6px; margin-top: 2.5rem; }
+    h3 { font-size: clamp(1.1rem, 2.5vw, 1.3rem); margin-top: 1.8rem; }
+
+    a { color: light-dark(#2563eb, #60a5fa); }
+    img, svg { max-width: 100%; height: auto; }
+    hr { border: none; border-top: 1px solid light-dark(#e2e8f0, #334155); margin: 2rem 0; }
+
+    .header-bar {
+      background: linear-gradient(135deg, #29b5e8, #1b6ff0);
+      color: #fff; padding: clamp(20px, 4vw, 40px); border-radius: 12px;
+      margin-bottom: 2rem; text-align: center;
+    }
+    .header-bar h1 { color: #fff; border: none; margin: 0; font-size: clamp(1.5rem, 4vw, 2rem); }
+    .header-bar p { margin: 8px 0 0; opacity: 0.9; font-size: 0.95rem; }
+    .header-bar .subtitle { font-size: clamp(1rem, 2.5vw, 1.2rem); font-weight: 500; }
+
+    /* Sidebar TOC */
+    :root { --sidebar-width: 270px; }
+    .sidebar {
+      position: fixed; top: 0; left: 0;
+      width: var(--sidebar-width); height: 100vh;
+      overflow-y: auto;
+      background: light-dark(#1e293b, #0c1222);
+      color: #cbd5e1;
+      padding: 20px 14px; z-index: 100;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+    .sidebar .logo {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 20px; padding-bottom: 14px;
+      border-bottom: 1px solid #334155;
+    }
+    .sidebar .logo-icon {
+      width: 26px; height: 26px; border-radius: 6px;
+      background: linear-gradient(135deg, #29b5e8, #1b6ff0);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 700; font-size: 13px; flex-shrink: 0;
+    }
+    .sidebar .logo span {
+      font-size: 13px; font-weight: 600; color: #fff; line-height: 1.3;
+    }
+    .sidebar nav ul { list-style: none; padding: 0; margin: 0; }
+    .sidebar nav > ul > li { margin-bottom: 2px; }
+    .sidebar nav a {
+      display: block; padding: 5px 10px;
+      color: #94a3b8; text-decoration: none;
+      font-size: 12.5px; border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .sidebar nav a:hover { color: #fff; background: #334155; }
+    .sidebar nav a.active { color: #29b5e8; background: rgba(41,181,232,0.1); }
+    .sidebar nav .section-title {
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #64748b;
+      padding: 10px 10px 3px; font-weight: 600;
+    }
+
+    /* Main content offset */
+    .main {
+      margin-left: var(--sidebar-width);
+      max-width: 960px; width: 100%;
+      padding: clamp(16px, 4vw, 32px);
+    }
+
+    /* Responsive: collapse sidebar on small screens */
+    @media (max-width: 900px) {
+      .sidebar { width: 100%; height: auto; position: relative; }
+      .main { margin-left: 0; }
+    }
+    @media print {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 20px; }
+    }
+
+    .module-badge {
+      display: inline-block;
+      background: light-dark(#dbeafe, #1e3a5f);
+      color: light-dark(#1e40af, #93c5fd);
+      font-size: 0.75rem; font-weight: 700;
+      padding: 2px 10px; border-radius: 12px;
+      margin-right: 8px; vertical-align: middle;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    .lgpd-ref {
+      display: inline-block;
+      background: light-dark(#fef3c7, #422006);
+      color: light-dark(#92400e, #fbbf24);
+      font-size: 0.72rem; font-weight: 600;
+      padding: 2px 8px; border-radius: 10px;
+      margin-left: 6px;
+    }
+
+    .info-box {
+      background: light-dark(#eff6ff, #1e293b);
+      border-left: 4px solid #29b5e8;
+      padding: 14px 18px; border-radius: 0 8px 8px 0;
+      margin: 16px 0; font-size: 0.92rem;
+    }
+    .info-box.warn {
+      border-left-color: #f59e0b;
+      background: light-dark(#fffbeb, #1c1917);
+    }
+    .info-box.success {
+      border-left-color: #22c55e;
+      background: light-dark(#f0fdf4, #14532d);
+    }
+    .info-box strong { display: block; margin-bottom: 4px; }
+
+    .table-wrap { overflow-x: auto; margin: 16px 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+    th, td { border: 1px solid light-dark(#d1d5db, #374151); padding: 8px 12px; text-align: left; }
+    th { background: light-dark(#f1f5f9, #1e293b); font-weight: 600; }
+    tr:nth-child(even) { background: light-dark(#f8fafc, #0f172a33); }
+
+    pre {
+      background: light-dark(#1e293b, #0f172a);
+      color: #e2e8f0;
+      padding: 16px; border-radius: 8px;
+      overflow-x: auto; font-size: 0.82rem;
+      line-height: 1.5; margin: 12px 0;
+      border: 1px solid light-dark(#334155, #1e293b);
+    }
+    pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+
+    code {
+      background: light-dark(#f1f5f9, #1e293b);
+      padding: 2px 6px; border-radius: 4px;
+      font-size: 0.85em;
+    }
+
+    details {
+      border: 1px solid light-dark(#e2e8f0, #334155);
+      border-radius: 8px; margin: 12px 0; padding: 0;
+    }
+    details summary {
+      padding: 12px 16px; cursor: pointer; font-weight: 600;
+      background: light-dark(#f8fafc, #1e293b); border-radius: 8px;
+      list-style: none; display: flex; align-items: center; gap: 8px;
+    }
+    details summary::before { content: '\25B6'; font-size: 0.7rem; transition: transform 0.2s; }
+    details[open] summary::before { transform: rotate(90deg); }
+    details summary::-webkit-details-marker { display: none; }
+    details > div { padding: 4px 16px 16px; }
+
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #29b5e8; color: #fff; font-weight: 700;
+      font-size: 0.82rem; margin-right: 8px; flex-shrink: 0;
+    }
+
+    .diagram-wrap { overflow-x: auto; margin: 16px 0; text-align: center; }
+
+    .glossary-term { font-weight: 700; color: light-dark(#1e40af, #93c5fd); }
+
+    .back-to-top { display: none; }
+
+    footer {
+      margin-top: 3rem; padding-top: 1.5rem;
+      border-top: 1px solid light-dark(#e2e8f0, #334155);
+      font-size: 0.82rem; color: light-dark(#64748b, #94a3b8);
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      pre { font-size: 0.75rem; padding: 12px; }
+      th, td { padding: 6px 8px; font-size: 0.82rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================ -->
+<!-- SIDEBAR TOC                                   -->
+<!-- ============================================ -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">L</div>
+    <span>LGPD + Snowflake</span>
+  </div>
+  <nav><ul>
+    <li><div class="section-title">Fundamentos</div></li>
+    <li><a href="#mod1">1. Fundamentos da LGPD</a></li>
+    <li><div class="section-title">Implementacao</div></li>
+    <li><a href="#mod2">2. Governanca e RBAC</a></li>
+    <li><a href="#mod3">3. Classificacao de Dados</a></li>
+    <li><a href="#mod4">4. Tags Customizadas</a></li>
+    <li><a href="#mod5">5. Mascaramento Dinamico</a></li>
+    <li><a href="#mod6">6. Row Access Policies</a></li>
+    <li><a href="#mod7">7. Projection Policies</a></li>
+    <li><div class="section-title">Operacao</div></li>
+    <li><a href="#mod8">8. Direitos do Titular (DSAR)</a></li>
+    <li><a href="#mod9">9. Auditoria e Conformidade</a></li>
+    <li><div class="section-title">Referencia</div></li>
+    <li><a href="#glossary">Glossario LGPD</a></li>
+    <li><a href="#ref-table">LGPD &rarr; Snowflake</a></li>
+  </ul></nav>
+</aside>
+
+<!-- ============================================ -->
+<!-- MAIN CONTENT                                  -->
+<!-- ============================================ -->
+<main class="main" id="top">
+
+<div class="header-bar">
+  <p class="subtitle">Treinamento Passo a Passo</p>
+  <h1>LGPD + Snowflake</h1>
+  <p>Guia Completo de Conformidade com a Lei Geral de Protecao de Dados usando Snowflake</p>
+  <p style="margin-top:12px; font-size:0.82rem; opacity:0.75;">Lei 13.709/2018 &bull; Snowflake Enterprise Edition+ &bull; 9 Modulos</p>
+</div>
+
+<!-- ============================================ -->
+<!-- MODULE 1                                      -->
+<!-- ============================================ -->
+<h2 id="mod1"><span class="module-badge">Modulo 1</span> Fundamentos da LGPD e Arquitetura Snowflake <span class="lgpd-ref">Arts. 1-5, 46</span></h2>
+
+<h3>O que e a LGPD?</h3>
+<p>A <strong>Lei Geral de Protecao de Dados</strong> (Lei 13.709/2018) e a legislacao brasileira que regulamenta o tratamento de dados pessoais. Inspirada no GDPR europeu, a LGPD estabelece direitos dos titulares, obrigacoes dos controladores e operadores, e sancoes administrativas aplicadas pela <strong>ANPD</strong> (Autoridade Nacional de Protecao de Dados).</p>
+
+<h3>Conceitos fundamentais (Art. 5)</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Termo LGPD</th><th>Definicao</th><th>Equivalente Snowflake</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Dado Pessoal</strong></td><td>Informacao relacionada a pessoa natural identificada ou identificavel</td><td>Colunas classificadas como NAME, EMAIL, PHONE_NUMBER, etc.</td></tr>
+    <tr><td><strong>Dado Pessoal Sensivel</strong></td><td>Origem racial, saude, biometria, genetica, vida sexual, opiniao politica, conviccao religiosa, filiacao sindical</td><td>Colunas classificadas como ETHNICITY, MEDICAL_DATA, GENDER</td></tr>
+    <tr><td><strong>Titular</strong></td><td>Pessoa natural a quem se referem os dados pessoais</td><td>Registro (row) na tabela de dados</td></tr>
+    <tr><td><strong>Controlador</strong></td><td>Pessoa que toma as decisoes sobre o tratamento dos dados</td><td>Proprietario do Snowflake Account</td></tr>
+    <tr><td><strong>Operador</strong></td><td>Pessoa que realiza o tratamento em nome do controlador</td><td>Roles/usuarios com acesso aos dados</td></tr>
+    <tr><td><strong>Encarregado (DPO)</strong></td><td>Pessoa indicada para comunicacao entre controlador, titular e ANPD</td><td>Role LGPD_DPO no Snowflake</td></tr>
+    <tr><td><strong>Tratamento</strong></td><td>Qualquer operacao realizada com dados pessoais (coleta, armazenamento, consulta, etc.)</td><td>Queries, ETL, transformacoes no Snowflake</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Bases Legais para Tratamento (Art. 7)</h3>
+<p>A LGPD define 10 bases legais para o tratamento de dados pessoais. Cada tabela contendo dados pessoais deve ter sua base legal documentada:</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>#</th><th>Base Legal</th><th>Tag Value</th></tr></thead>
+  <tbody>
+    <tr><td>I</td><td>Consentimento do titular</td><td><code>CONSENTIMENTO</code></td></tr>
+    <tr><td>II</td><td>Cumprimento de obrigacao legal ou regulatoria</td><td><code>OBRIGACAO_LEGAL</code></td></tr>
+    <tr><td>III</td><td>Execucao de politicas publicas</td><td><code>EXECUCAO_POLITICAS_PUBLICAS</code></td></tr>
+    <tr><td>IV</td><td>Realizacao de estudos por orgao de pesquisa</td><td><code>PESQUISA</code></td></tr>
+    <tr><td>V</td><td>Execucao de contrato</td><td><code>EXECUCAO_CONTRATO</code></td></tr>
+    <tr><td>VI</td><td>Exercicio regular de direitos</td><td><code>EXERCICIO_DIREITOS</code></td></tr>
+    <tr><td>VII</td><td>Protecao da vida ou da incolumidade fisica</td><td><code>PROTECAO_VIDA</code></td></tr>
+    <tr><td>VIII</td><td>Tutela da saude</td><td><code>TUTELA_SAUDE</code></td></tr>
+    <tr><td>IX</td><td>Interesse legitimo do controlador</td><td><code>INTERESSE_LEGITIMO</code></td></tr>
+    <tr><td>X</td><td>Protecao do credito</td><td><code>PROTECAO_CREDITO</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Pre-requisitos Snowflake</h3>
+<div class="info-box">
+  <strong>Requisitos Minimos</strong>
+  <ul style="margin:4px 0 0; padding-left:18px;">
+    <li><strong>Snowflake Enterprise Edition</strong> (ou superior) &mdash; obrigatorio para Tags, Masking Policies, Row Access Policies e Classification</li>
+    <li><strong>Regiao recomendada:</strong> <code>sa-east-1</code> (AWS Sao Paulo) para residencia de dados no Brasil</li>
+    <li>Criptografia: AES-256 em repouso, TLS 1.2+ em transito (padrao Snowflake)</li>
+    <li>Time Travel (ate 90 dias) e Fail-safe (7 dias) para protecao continua</li>
+  </ul>
+</div>
+
+<h3>Arquitetura de Governanca</h3>
+<div class="diagram-wrap">
+  <pre class="mermaid">
+graph TB
+  subgraph account ["Snowflake Account (sa-east-1)"]
+    subgraph govDB ["LGPD_GOVERNANCE Database"]
+      TAGS["TAGS Schema<br/>Tags customizadas LGPD"]
+      POLICIES["POLICIES Schema<br/>Masking + Row Access"]
+      AUDIT["AUDIT Schema<br/>DSAR Log + Procedures"]
+    end
+    subgraph roles ["Hierarquia de Roles"]
+      ACCTADMIN["ACCOUNTADMIN"]
+      DPO["LGPD_DPO"]
+      PRIV["LGPD_PRIVACY_ADMIN"]
+      STEW["LGPD_DATA_STEWARD"]
+      ANALYST["LGPD_ANALYST"]
+      ACCTADMIN --> DPO
+      DPO --> PRIV
+      DPO --> STEW
+      PRIV --> ANALYST
+    end
+    subgraph dataDB ["Databases de Negocio"]
+      CUST["Tabelas com Dados Pessoais"]
+    end
+  end
+  TAGS -.->|"tag-based masking"| CUST
+  POLICIES -.->|"protecao"| CUST
+  AUDIT -.->|"auditoria"| CUST
+  </pre>
+</div>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- MODULE 2                                      -->
+<!-- ============================================ -->
+<h2 id="mod2"><span class="module-badge">Modulo 2</span> Infraestrutura de Governanca e RBAC <span class="lgpd-ref">Arts. 41, 46, 50</span></h2>
+
+<p>Neste modulo, criamos a infraestrutura centralizada de governanca: um database dedicado, schemas para tags/politicas/auditoria, e roles especificos para LGPD.</p>
+
+<div class="info-box warn">
+  <strong>Configuracao Inicial</strong>
+  Antes de executar qualquer modulo, defina as variaveis abaixo com seu usuario e email. Estas variaveis sao usadas ao longo de todo o treinamento.
+</div>
+
+<h3><span class="step-num">0</span> Configurar Variaveis do Treinamento</h3>
+<pre><code class="language-sql">-- =============================================================
+-- CONFIGURACAO: substitua os valores abaixo antes de executar
+-- =============================================================
+
+SET LGPD_USER      = '&lt;SEU_USUARIO&gt;';          -- Ex: 'JSILVA'
+SET LGPD_DPO_EMAIL = '&lt;SEU_EMAIL&gt;';             -- Ex: 'dpo@empresa.com.br'</code></pre>
+
+<h3><span class="step-num">1</span> Criar Database, Schemas e Warehouse</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 2.1: Database, Schemas e Warehouse de Governanca
+-- =============================================================
+-- Um database centralizado evita fragmentacao de politicas
+
+CREATE DATABASE IF NOT EXISTS LGPD_GOVERNANCE
+  COMMENT = 'Database centralizado para governanca LGPD';
+
+CREATE SCHEMA IF NOT EXISTS LGPD_GOVERNANCE.TAGS
+  COMMENT = 'Tags customizadas para classificacao LGPD';
+
+CREATE SCHEMA IF NOT EXISTS LGPD_GOVERNANCE.POLICIES
+  COMMENT = 'Masking policies e Row Access Policies';
+
+CREATE SCHEMA IF NOT EXISTS LGPD_GOVERNANCE.AUDIT
+  COMMENT = 'Logs de DSAR, procedimentos e alertas';
+
+-- Warehouse dedicado para o treinamento (X-Small = custo minimo)
+CREATE WAREHOUSE IF NOT EXISTS LGPD_TRAINING_WH
+  WAREHOUSE_SIZE = 'X-SMALL'
+  AUTO_SUSPEND = 60
+  AUTO_RESUME = TRUE
+  COMMENT = 'Warehouse dedicado para treinamento LGPD';</code></pre>
+
+<h3><span class="step-num">2</span> Criar Roles Especificos para LGPD</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 2.2: Roles LGPD
+-- =============================================================
+-- Segregacao de funcoes (SoD) conforme Art. 50 da LGPD
+
+USE ROLE USERADMIN;
+
+-- Encarregado (DPO) - Art. 41
+CREATE ROLE IF NOT EXISTS LGPD_DPO
+  COMMENT = 'Encarregado de Protecao de Dados (DPO) - Art. 41 LGPD';
+
+-- Administrador de Privacidade - cria e gerencia politicas
+CREATE ROLE IF NOT EXISTS LGPD_PRIVACY_ADMIN
+  COMMENT = 'Cria e gerencia masking policies e row access policies';
+
+-- Data Steward - aplica tags e monitora
+CREATE ROLE IF NOT EXISTS LGPD_DATA_STEWARD
+  COMMENT = 'Aplica tags LGPD e monitora conformidade';
+
+-- Analista - acesso restrito a dados anonimizados
+CREATE ROLE IF NOT EXISTS LGPD_ANALYST
+  COMMENT = 'Acesso a dados com mascaramento aplicado';
+
+-- Hierarquia de roles
+GRANT ROLE LGPD_PRIVACY_ADMIN TO ROLE LGPD_DPO;
+GRANT ROLE LGPD_DATA_STEWARD  TO ROLE LGPD_DPO;
+GRANT ROLE LGPD_ANALYST        TO ROLE LGPD_PRIVACY_ADMIN;</code></pre>
+
+<h3><span class="step-num">3</span> Conceder Privilegios de Governanca</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 2.3: Privilegios
+-- =============================================================
+USE ROLE ACCOUNTADMIN;
+
+-- Privilegios para LGPD_DATA_STEWARD (tags)
+GRANT USAGE ON DATABASE LGPD_GOVERNANCE TO ROLE LGPD_DATA_STEWARD;
+GRANT USAGE ON SCHEMA LGPD_GOVERNANCE.TAGS TO ROLE LGPD_DATA_STEWARD;
+GRANT CREATE TAG ON SCHEMA LGPD_GOVERNANCE.TAGS TO ROLE LGPD_DATA_STEWARD;
+GRANT APPLY TAG ON ACCOUNT TO ROLE LGPD_DATA_STEWARD;
+
+-- Privilegios para LGPD_PRIVACY_ADMIN (policies)
+GRANT USAGE ON DATABASE LGPD_GOVERNANCE TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT USAGE ON ALL SCHEMAS IN DATABASE LGPD_GOVERNANCE TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT CREATE MASKING POLICY ON SCHEMA LGPD_GOVERNANCE.POLICIES
+  TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT CREATE ROW ACCESS POLICY ON SCHEMA LGPD_GOVERNANCE.POLICIES
+  TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT APPLY MASKING POLICY ON ACCOUNT TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT APPLY ROW ACCESS POLICY ON ACCOUNT TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT CREATE PROJECTION POLICY ON SCHEMA LGPD_GOVERNANCE.POLICIES
+  TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT APPLY PROJECTION POLICY ON ACCOUNT TO ROLE LGPD_PRIVACY_ADMIN;
+
+-- Privilegios para LGPD_DPO (acesso ao Governance Dashboard)
+GRANT DATABASE ROLE SNOWFLAKE.GOVERNANCE_VIEWER TO ROLE LGPD_DPO;
+GRANT DATABASE ROLE SNOWFLAKE.OBJECT_VIEWER TO ROLE LGPD_DPO;
+
+-- Atribuir role LGPD_DPO ao usuario do treinamento
+GRANT ROLE LGPD_DPO TO USER IDENTIFIER($LGPD_USER);
+
+-- =========================================================
+-- PRIVILEGIOS ADICIONAIS (executar APOS Modulo 3 criar EMPRESA_DEMO)
+-- =========================================================
+
+-- Warehouse: sem isso, nenhum role LGPD consegue executar queries
+GRANT USAGE ON WAREHOUSE LGPD_TRAINING_WH TO ROLE LGPD_DPO;
+GRANT USAGE ON WAREHOUSE LGPD_TRAINING_WH TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT USAGE ON WAREHOUSE LGPD_TRAINING_WH TO ROLE LGPD_DATA_STEWARD;
+GRANT USAGE ON WAREHOUSE LGPD_TRAINING_WH TO ROLE LGPD_ANALYST;
+
+-- Acesso cross-DB para aplicar tags/policies em tabelas de negocio
+GRANT USAGE ON DATABASE EMPRESA_DEMO TO ROLE LGPD_DATA_STEWARD;
+GRANT USAGE ON SCHEMA EMPRESA_DEMO.DADOS_CLIENTES TO ROLE LGPD_DATA_STEWARD;
+GRANT USAGE ON DATABASE EMPRESA_DEMO TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT USAGE ON SCHEMA EMPRESA_DEMO.DADOS_CLIENTES TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT SELECT ON TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+  TO ROLE LGPD_PRIVACY_ADMIN;
+
+-- LGPD_DPO: acesso ao AUDIT schema para DSAR
+GRANT USAGE ON DATABASE EMPRESA_DEMO TO ROLE LGPD_DPO;
+GRANT USAGE ON SCHEMA EMPRESA_DEMO.DADOS_CLIENTES TO ROLE LGPD_DPO;
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES TO ROLE LGPD_DPO;
+GRANT CREATE STAGE ON SCHEMA EMPRESA_DEMO.DADOS_CLIENTES TO ROLE LGPD_DPO;
+GRANT USAGE ON SCHEMA LGPD_GOVERNANCE.AUDIT TO ROLE LGPD_DPO;
+GRANT CREATE TABLE ON SCHEMA LGPD_GOVERNANCE.AUDIT TO ROLE LGPD_DPO;
+GRANT CREATE PROCEDURE ON SCHEMA LGPD_GOVERNANCE.AUDIT TO ROLE LGPD_DPO;
+GRANT CREATE ALERT ON SCHEMA LGPD_GOVERNANCE.AUDIT TO ROLE LGPD_DPO;
+GRANT EXECUTE ALERT ON ACCOUNT TO ROLE LGPD_DPO;
+
+-- LGPD_PRIVACY_ADMIN: CREATE TABLE para tabela ACCESS_MAPPING (Modulo 6)
+GRANT CREATE TABLE ON SCHEMA LGPD_GOVERNANCE.POLICIES
+  TO ROLE LGPD_PRIVACY_ADMIN;</code></pre>
+
+<h3><span class="step-num">4</span> Validacao</h3>
+<pre><code class="language-sql">-- Verificar hierarquia de roles
+SHOW GRANTS TO ROLE LGPD_DPO;
+SHOW GRANTS TO ROLE LGPD_PRIVACY_ADMIN;
+SHOW GRANTS TO ROLE LGPD_DATA_STEWARD;
+
+-- Confirmar privilegios
+SHOW GRANTS ON SCHEMA LGPD_GOVERNANCE.TAGS;
+SHOW GRANTS ON SCHEMA LGPD_GOVERNANCE.POLICIES;</code></pre>
+
+<div class="info-box success">
+  <strong>Resultado Esperado</strong>
+  O role LGPD_DPO deve herdar os privilegios de LGPD_PRIVACY_ADMIN e LGPD_DATA_STEWARD, tendo visao completa da governanca atraves do Snowsight Governance Dashboard.
+</div>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- MODULE 3                                      -->
+<!-- ============================================ -->
+<h2 id="mod3"><span class="module-badge">Modulo 3</span> Descoberta e Classificacao de Dados <span class="lgpd-ref">Arts. 5, 11</span></h2>
+
+<p>Antes de proteger dados pessoais, e necessario saber <strong>onde eles estao</strong>. O Snowflake oferece classificacao automatica que identifica PII e dados sensiveis.</p>
+
+<h3><span class="step-num">1</span> Criar Dados de Exemplo (Para Treinamento)</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 3.1: Tabela de exemplo com dados pessoais brasileiros
+-- =============================================================
+USE ROLE SYSADMIN;
+CREATE DATABASE IF NOT EXISTS EMPRESA_DEMO;
+GRANT USAGE ON DATABASE EMPRESA_DEMO TO ROLE LGPD_ANALYST;
+CREATE SCHEMA IF NOT EXISTS EMPRESA_DEMO.DADOS_CLIENTES;
+GRANT USAGE ON SCHEMA EMPRESA_DEMO.DADOS_CLIENTES TO ROLE LGPD_ANALYST;
+
+CREATE OR REPLACE TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES (
+  ID              NUMBER AUTOINCREMENT PRIMARY KEY,
+  NOME            STRING    COMMENT 'Nome completo do titular',
+  CPF             STRING    COMMENT 'Cadastro de Pessoa Fisica',
+  EMAIL           STRING    COMMENT 'Endereco de email',
+  TELEFONE        STRING    COMMENT 'Telefone com DDD',
+  DATA_NASCIMENTO DATE      COMMENT 'Data de nascimento',
+  ENDERECO        STRING    COMMENT 'Endereco residencial',
+  CIDADE          STRING,
+  ESTADO          STRING,
+  CEP             STRING,
+  GENERO          STRING    COMMENT 'Dado pessoal sensivel (Art. 11)',
+  ETNIA           STRING    COMMENT 'Dado pessoal sensivel (Art. 11)',
+  DEPARTAMENTO    STRING    COMMENT 'Departamento interno',
+  DATA_CADASTRO   TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
+);
+GRANT SELECT ON TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES TO ROLE LGPD_ANALYST;
+
+-- Inserir dados ficticios para demonstracao
+INSERT INTO EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+  (NOME, CPF, EMAIL, TELEFONE, DATA_NASCIMENTO, ENDERECO, CIDADE, ESTADO, CEP, GENERO, ETNIA, DEPARTAMENTO)
+VALUES
+  ('Ana Silva',       '123.456.789-00', 'ana.silva@email.com',    '(11) 98765-4321', '1990-03-15', 'Rua das Flores, 100',     'Sao Paulo',      'SP', '01310-100', 'Feminino',  'Parda',  'RH'),
+  ('Carlos Oliveira', '987.654.321-00', 'carlos.oliv@email.com',  '(21) 91234-5678', '1985-07-22', 'Av. Atlantica, 500',      'Rio de Janeiro',  'RJ', '22070-002', 'Masculino', 'Branca', 'FINANCEIRO'),
+  ('Maria Santos',    '456.789.123-00', 'maria.santos@email.com', '(31) 99876-5432', '1992-11-08', 'Rua da Liberdade, 250',   'Belo Horizonte',  'MG', '30130-000', 'Feminino',  'Negra',  'MARKETING'),
+  ('Joao Pereira',    '321.654.987-00', 'joao.p@empresa.com.br',  '(41) 93456-7890', '1988-01-30', 'Av. Batel, 1500',         'Curitiba',        'PR', '80420-090', 'Masculino', 'Branca', 'RH'),
+  ('Beatriz Lima',    '654.321.987-00', 'bea.lima@empresa.com.br','(51) 97654-3210', '1995-06-12', 'Rua dos Andradas, 800',   'Porto Alegre',    'RS', '90020-007', 'Feminino',  'Parda',  'FINANCEIRO');</code></pre>
+
+<h3><span class="step-num">2</span> Executar Classificacao Automatica</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 3.2: Classificacao automatica de dados
+-- =============================================================
+-- A funcao CLASSIFY identifica categorias semanticas (PII)
+-- e aplica tags de sistema automaticamente com auto_tag: true
+-- IMPORTANTE: Requer ACCOUNTADMIN para executar com auto_tag
+
+USE ROLE ACCOUNTADMIN;
+
+CALL SYSTEM$CLASSIFY(
+  'EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES',
+  {'auto_tag': true}
+);</code></pre>
+
+<h3><span class="step-num">3</span> Revisar Resultados da Classificacao</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 3.3: Revisar tags de sistema aplicadas
+-- =============================================================
+
+-- Ver resultado detalhado da classificacao
+CALL SYSTEM$GET_CLASSIFICATION_RESULT(
+  'EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES'
+);
+
+-- Ver tags de sistema aplicadas as colunas
+SELECT *
+FROM TABLE(
+  EMPRESA_DEMO.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS(
+    'EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES', 'TABLE'
+  )
+)
+WHERE TAG_NAME IN ('SEMANTIC_CATEGORY', 'PRIVACY_CATEGORY')
+ORDER BY COLUMN_NAME, TAG_NAME;</code></pre>
+
+<h3>Mapeamento: Categorias Snowflake para LGPD</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Coluna</th><th>Semantic Category</th><th>Privacy Category</th><th>Categoria LGPD</th></tr></thead>
+  <tbody>
+    <tr><td>NOME</td><td>NAME</td><td>IDENTIFIER</td><td>Dado Pessoal</td></tr>
+    <tr><td>CPF</td><td>NATIONAL_IDENTIFIER (BR)</td><td>IDENTIFIER</td><td>Dado Pessoal</td></tr>
+    <tr><td>EMAIL</td><td>EMAIL</td><td>IDENTIFIER</td><td>Dado Pessoal</td></tr>
+    <tr><td>TELEFONE</td><td>PHONE_NUMBER</td><td>IDENTIFIER</td><td>Dado Pessoal</td></tr>
+    <tr><td>DATA_NASCIMENTO</td><td>DATE_OF_BIRTH</td><td>QUASI_IDENTIFIER</td><td>Dado Pessoal</td></tr>
+    <tr><td>ENDERECO</td><td>STREET_ADDRESS</td><td>IDENTIFIER</td><td>Dado Pessoal</td></tr>
+    <tr><td>GENERO</td><td>GENDER</td><td>QUASI_IDENTIFIER</td><td><strong>Dado Pessoal Sensivel</strong></td></tr>
+    <tr><td>ETNIA</td><td>ETHNICITY</td><td>QUASI_IDENTIFIER</td><td><strong>Dado Pessoal Sensivel</strong></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="info-box warn">
+  <strong>Atencao: Dados Pessoais Sensiveis (Art. 11)</strong>
+  Colunas como GENERO e ETNIA sao dados pessoais sensiveis sob a LGPD e exigem protecao adicional. O tratamento so e permitido com consentimento especifico e destacado, ou nas hipoteses do Art. 11, II.
+</div>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- MODULE 4                                      -->
+<!-- ============================================ -->
+<h2 id="mod4"><span class="module-badge">Modulo 4</span> Tags Customizadas para LGPD <span class="lgpd-ref">Arts. 6, 7, 15</span></h2>
+
+<p>Alem das tags de sistema (classificacao automatica), criamos tags customizadas para documentar metadados exigidos pela LGPD: base legal, finalidade, periodo de retencao, e responsaveis.</p>
+
+<h3><span class="step-num">1</span> Criar Tags LGPD</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 4.1: Tags customizadas LGPD
+-- =============================================================
+USE ROLE LGPD_DATA_STEWARD;
+USE SCHEMA LGPD_GOVERNANCE.TAGS;
+
+-- Categoria do dado conforme LGPD Art. 5
+CREATE OR REPLACE TAG LGPD_DATA_CATEGORY
+  ALLOWED_VALUES
+    'DADO_PESSOAL',
+    'DADO_PESSOAL_SENSIVEL',
+    'DADO_ANONIMIZADO',
+    'NAO_PESSOAL'
+  COMMENT = 'Classificacao do dado conforme Art. 5 da LGPD';
+
+-- Base legal para o tratamento (Art. 7)
+CREATE OR REPLACE TAG LGPD_BASE_LEGAL
+  ALLOWED_VALUES
+    'CONSENTIMENTO',
+    'OBRIGACAO_LEGAL',
+    'EXECUCAO_POLITICAS_PUBLICAS',
+    'PESQUISA',
+    'EXECUCAO_CONTRATO',
+    'EXERCICIO_DIREITOS',
+    'PROTECAO_VIDA',
+    'TUTELA_SAUDE',
+    'INTERESSE_LEGITIMO',
+    'PROTECAO_CREDITO'
+  COMMENT = 'Base legal para tratamento conforme Art. 7 da LGPD';
+
+-- Finalidade do tratamento (Art. 6, I)
+CREATE OR REPLACE TAG LGPD_FINALIDADE
+  COMMENT = 'Descricao da finalidade do tratamento (Art. 6, I)';
+
+-- Periodo de retencao em dias (Art. 15-16)
+CREATE OR REPLACE TAG LGPD_RETENCAO
+  COMMENT = 'Periodo de retencao em dias (Art. 15-16)';
+
+-- Controlador responsavel (Art. 5, VI)
+CREATE OR REPLACE TAG LGPD_CONTROLADOR
+  COMMENT = 'Nome do controlador de dados (Art. 5, VI)';
+
+-- Operador responsavel (Art. 5, VII)
+CREATE OR REPLACE TAG LGPD_OPERADOR
+  COMMENT = 'Nome do operador de dados (Art. 5, VII)';</code></pre>
+
+<h3><span class="step-num">2</span> Aplicar Tags a Tabelas (Heranca)</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 4.2: Aplicar tags na tabela (heranca automatica para colunas)
+-- =============================================================
+
+-- Tags de metadados no nivel da tabela (heranca para todas as colunas)
+-- NOTA: LGPD_DATA_CATEGORY e aplicada por COLUNA (nao na tabela)
+-- para evitar conflito com tag-based masking em colunas nao-PII
+-- como DEPARTAMENTO (usado pela Row Access Policy no Modulo 6).
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES SET TAG
+  LGPD_GOVERNANCE.TAGS.LGPD_BASE_LEGAL    = 'CONSENTIMENTO',
+  LGPD_GOVERNANCE.TAGS.LGPD_FINALIDADE    = 'Cadastro de clientes para prestacao de servicos',
+  LGPD_GOVERNANCE.TAGS.LGPD_RETENCAO      = '1825',
+  LGPD_GOVERNANCE.TAGS.LGPD_CONTROLADOR   = 'Empresa Demo Ltda';
+
+-- LGPD_DATA_CATEGORY aplicada individualmente nas colunas PII
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  NOME SET TAG LGPD_GOVERNANCE.TAGS.LGPD_DATA_CATEGORY = 'DADO_PESSOAL';
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  CPF SET TAG LGPD_GOVERNANCE.TAGS.LGPD_DATA_CATEGORY = 'DADO_PESSOAL';
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  EMAIL SET TAG LGPD_GOVERNANCE.TAGS.LGPD_DATA_CATEGORY = 'DADO_PESSOAL';
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  TELEFONE SET TAG LGPD_GOVERNANCE.TAGS.LGPD_DATA_CATEGORY = 'DADO_PESSOAL';
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  DATA_NASCIMENTO SET TAG LGPD_GOVERNANCE.TAGS.LGPD_DATA_CATEGORY = 'DADO_PESSOAL';
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  ENDERECO SET TAG LGPD_GOVERNANCE.TAGS.LGPD_DATA_CATEGORY = 'DADO_PESSOAL';</code></pre>
+
+<h3><span class="step-num">3</span> Tags Especificas para Colunas Sensiveis</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 4.3: Override no nivel da coluna para dados sensiveis
+-- =============================================================
+
+-- Colunas sensiveis (Art. 11) recebem tag especifica
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  GENERO SET TAG LGPD_GOVERNANCE.TAGS.LGPD_DATA_CATEGORY = 'DADO_PESSOAL_SENSIVEL';
+
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  ETNIA SET TAG LGPD_GOVERNANCE.TAGS.LGPD_DATA_CATEGORY = 'DADO_PESSOAL_SENSIVEL';</code></pre>
+
+<h3><span class="step-num">4</span> Validacao das Tags</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 4.4: Verificar tags aplicadas
+-- =============================================================
+
+-- Ver todas as tags na tabela e suas colunas
+SELECT *
+FROM TABLE(
+  EMPRESA_DEMO.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS(
+    'EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES', 'TABLE'
+  )
+)
+WHERE TAG_DATABASE = 'LGPD_GOVERNANCE'
+ORDER BY COLUMN_NAME, TAG_NAME;
+
+-- Consultar valor de uma tag especifica
+SELECT SYSTEM$GET_TAG(
+  'LGPD_GOVERNANCE.TAGS.LGPD_BASE_LEGAL',
+  'EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES',
+  'TABLE'
+);</code></pre>
+
+<div class="info-box">
+  <strong>Tag Inheritance (Heranca) e Tag-Based Masking</strong>
+  Tags de metadados (BASE_LEGAL, FINALIDADE, RETENCAO, CONTROLADOR) sao aplicadas na tabela e herdadas por todas as colunas. A tag <code>LGPD_DATA_CATEGORY</code> e aplicada <strong>individualmente por coluna</strong> para evitar que colunas nao-PII (como DEPARTAMENTO, CIDADE, ESTADO) sejam mascaradas pela tag-based masking do Modulo 5. Colunas sensiveis (GENERO, ETNIA) recebem <code>DADO_PESSOAL_SENSIVEL</code>.
+</div>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- MODULE 5                                      -->
+<!-- ============================================ -->
+<h2 id="mod5"><span class="module-badge">Modulo 5</span> Politicas de Mascaramento Dinamico <span class="lgpd-ref">Arts. 46, 6-X</span></h2>
+
+<p>Masking policies protegem dados pessoais em tempo de consulta. O dado original permanece intacto na tabela, mas usuarios nao autorizados veem valores mascarados.</p>
+
+<h3><span class="step-num">1</span> Criar Masking Policies por Tipo de Dado</h3>
+
+<details>
+  <summary>Mascaramento de CPF</summary>
+  <div>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 5.1a: Masking Policy para CPF
+-- =============================================================
+-- Formato: 123.456.789-00 -> ***.456.789-**
+-- Somente DPO e PRIVACY_ADMIN veem o CPF completo
+
+USE ROLE LGPD_PRIVACY_ADMIN;
+
+CREATE OR REPLACE MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_CPF
+  AS (val STRING) RETURNS STRING ->
+  CASE
+    WHEN IS_ROLE_IN_SESSION('LGPD_DPO') THEN val
+    WHEN IS_ROLE_IN_SESSION('LGPD_PRIVACY_ADMIN') THEN val
+    ELSE CONCAT(
+      '***.',
+      COALESCE(SUBSTR(val, 5, 3), '***'),
+      '.',
+      COALESCE(SUBSTR(val, 9, 3), '***'),
+      '-**'
+    )
+  END
+  COMMENT = 'Mascara CPF para roles nao autorizadas (Art. 46 LGPD)';</code></pre>
+  </div>
+</details>
+
+<details>
+  <summary>Mascaramento de Email</summary>
+  <div>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 5.1b: Masking Policy para Email
+-- =============================================================
+-- ana.silva@email.com -> *****@email.com
+
+CREATE OR REPLACE MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_EMAIL
+  AS (val STRING) RETURNS STRING ->
+  CASE
+    WHEN IS_ROLE_IN_SESSION('LGPD_DPO') THEN val
+    WHEN IS_ROLE_IN_SESSION('LGPD_PRIVACY_ADMIN') THEN val
+    ELSE REGEXP_REPLACE(val, '.+\\@', '*****@')
+  END
+  COMMENT = 'Mascara parte local do email (Art. 46 LGPD)';</code></pre>
+  </div>
+</details>
+
+<details>
+  <summary>Mascaramento de Telefone</summary>
+  <div>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 5.1c: Masking Policy para Telefone
+-- =============================================================
+-- (11) 98765-4321 -> (**) *****-4321
+
+CREATE OR REPLACE MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_PHONE
+  AS (val STRING) RETURNS STRING ->
+  CASE
+    WHEN IS_ROLE_IN_SESSION('LGPD_DPO') THEN val
+    ELSE CONCAT('(**) *****-', RIGHT(val, 4))
+  END
+  COMMENT = 'Mascara telefone mantendo ultimos 4 digitos';</code></pre>
+  </div>
+</details>
+
+<details>
+  <summary>Mascaramento Generico (String e Number)</summary>
+  <div>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 5.1d: Masking Policies genericas
+-- =============================================================
+
+-- STRING generico (nomes, enderecos, dados sensiveis)
+CREATE OR REPLACE MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_PII_STRING
+  AS (val STRING) RETURNS STRING ->
+  CASE
+    WHEN IS_ROLE_IN_SESSION('LGPD_DPO') THEN val
+    WHEN IS_ROLE_IN_SESSION('LGPD_PRIVACY_ADMIN') THEN val
+    ELSE '***PROTEGIDO***'
+  END
+  COMMENT = 'Mascaramento generico para strings com dados pessoais';
+
+-- NUMBER generico (idade, salario, etc.)
+CREATE OR REPLACE MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_PII_NUMBER
+  AS (val NUMBER) RETURNS NUMBER ->
+  CASE
+    WHEN IS_ROLE_IN_SESSION('LGPD_DPO') THEN val
+    ELSE NULL
+  END
+  COMMENT = 'Mascaramento generico para numeros com dados pessoais';
+
+-- DATE generico (data de nascimento, etc.)
+CREATE OR REPLACE MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_PII_DATE
+  AS (val DATE) RETURNS DATE ->
+  CASE
+    WHEN IS_ROLE_IN_SESSION('LGPD_DPO') THEN val
+    ELSE DATE_FROM_PARTS(1900, 01, 01)
+  END
+  COMMENT = 'Mascaramento generico para datas com dados pessoais';</code></pre>
+  </div>
+</details>
+
+<h3><span class="step-num">2</span> Aplicar Policies Diretamente nas Colunas</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 5.2: Aplicar masking policies diretamente
+-- =============================================================
+
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  CPF SET MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_CPF;
+
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  EMAIL SET MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_EMAIL;
+
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  TELEFONE SET MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_PHONE;
+
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  DATA_NASCIMENTO SET MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_PII_DATE;</code></pre>
+
+<h3><span class="step-num">3</span> Tag-Based Masking (Abordagem Escalavel)</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 5.3: Tag-based masking para protecao automatica
+-- =============================================================
+-- Ao associar masking policies a uma tag, TODAS as colunas
+-- tagueadas com essa tag sao automaticamente protegidas.
+-- Isso garante "privacy by design" (Art. 46, para 2o).
+
+-- Associar policies genericas a tag LGPD_DATA_CATEGORY
+USE ROLE LGPD_PRIVACY_ADMIN;
+
+ALTER TAG LGPD_GOVERNANCE.TAGS.LGPD_DATA_CATEGORY SET
+  MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_PII_STRING,
+  MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_PII_NUMBER,
+  MASKING POLICY LGPD_GOVERNANCE.POLICIES.MASK_PII_DATE;
+
+-- IMPORTANTE: Policies aplicadas diretamente a coluna
+-- tem PRECEDENCIA sobre tag-based masking policies.
+-- Ou seja, CPF usa MASK_CPF (direta), nao MASK_PII_STRING (tag).</code></pre>
+
+<div class="info-box">
+  <strong>Precedencia de Policies</strong>
+  Quando uma coluna tem <strong>ambas</strong> uma masking policy direta e uma tag-based masking policy, a policy direta tem precedencia. Isso permite criar uma protecao generica via tags e refinamentos especificos por coluna.
+</div>
+
+<h3><span class="step-num">4</span> Testar Mascaramento</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 5.4: Validacao do mascaramento
+-- =============================================================
+
+-- IMPORTANTE: Desabilitar secondary roles para testar isoladamente.
+-- Com secondary roles ativas, IS_ROLE_IN_SESSION('LGPD_DPO') retorna
+-- TRUE mesmo usando LGPD_ANALYST, pois LGPD_DPO esta ativo como
+-- secondary role. Isso anula o mascaramento no ambiente de teste.
+USE SECONDARY ROLES NONE;
+
+-- Como LGPD_DPO: deve ver dados completos
+USE ROLE LGPD_DPO;
+SELECT NOME, CPF, EMAIL, TELEFONE, DATA_NASCIMENTO
+FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+LIMIT 3;
+-- Resultado esperado: dados originais visiveis
+
+-- Como LGPD_ANALYST: deve ver dados mascarados
+USE ROLE LGPD_ANALYST;
+SELECT NOME, CPF, EMAIL, TELEFONE, DATA_NASCIMENTO
+FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+LIMIT 3;
+-- Resultado esperado:
+-- NOME: ***PROTEGIDO***
+-- CPF: ***.456.789-**
+-- EMAIL: *****@email.com
+-- TELEFONE: (**) *****-4321
+-- DATA_NASCIMENTO: 1900-01-01
+
+-- Restaurar secondary roles apos o teste
+USE SECONDARY ROLES ALL;</code></pre>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- MODULE 6                                      -->
+<!-- ============================================ -->
+<h2 id="mod6"><span class="module-badge">Modulo 6</span> Row Access Policies <span class="lgpd-ref">Arts. 6-I, 46</span></h2>
+
+<p>Row Access Policies restringem quais <strong>linhas</strong> um usuario pode ver, implementando o principio de <strong>limitacao de finalidade</strong> (Art. 6, I) &mdash; cada departamento so acessa os dados necessarios para sua finalidade.</p>
+
+<h3><span class="step-num">1</span> Criar Roles por Departamento (Pre-requisito)</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 6.0: Roles por departamento para testar a RAP
+-- =============================================================
+USE ROLE USERADMIN;
+
+CREATE ROLE IF NOT EXISTS HR_ANALYST
+  COMMENT = 'Analista de RH';
+CREATE ROLE IF NOT EXISTS MARKETING_ANALYST
+  COMMENT = 'Analista de Marketing';
+CREATE ROLE IF NOT EXISTS FINANCE_ANALYST
+  COMMENT = 'Analista Financeiro';
+
+-- Atribuir ao usuario do treinamento para teste
+GRANT ROLE HR_ANALYST TO USER IDENTIFIER($LGPD_USER);
+GRANT ROLE MARKETING_ANALYST TO USER IDENTIFIER($LGPD_USER);
+GRANT ROLE FINANCE_ANALYST TO USER IDENTIFIER($LGPD_USER);
+
+-- Conceder warehouse + acesso a tabela
+USE ROLE ACCOUNTADMIN;
+GRANT USAGE ON WAREHOUSE LGPD_TRAINING_WH TO ROLE HR_ANALYST;
+GRANT USAGE ON WAREHOUSE LGPD_TRAINING_WH TO ROLE MARKETING_ANALYST;
+GRANT USAGE ON WAREHOUSE LGPD_TRAINING_WH TO ROLE FINANCE_ANALYST;
+GRANT USAGE ON DATABASE EMPRESA_DEMO TO ROLE HR_ANALYST;
+GRANT USAGE ON DATABASE EMPRESA_DEMO TO ROLE MARKETING_ANALYST;
+GRANT USAGE ON DATABASE EMPRESA_DEMO TO ROLE FINANCE_ANALYST;
+GRANT USAGE ON SCHEMA EMPRESA_DEMO.DADOS_CLIENTES TO ROLE HR_ANALYST;
+GRANT USAGE ON SCHEMA EMPRESA_DEMO.DADOS_CLIENTES TO ROLE MARKETING_ANALYST;
+GRANT USAGE ON SCHEMA EMPRESA_DEMO.DADOS_CLIENTES TO ROLE FINANCE_ANALYST;
+GRANT SELECT ON TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES TO ROLE HR_ANALYST;
+GRANT SELECT ON TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES TO ROLE MARKETING_ANALYST;
+GRANT SELECT ON TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES TO ROLE FINANCE_ANALYST;</code></pre>
+
+<h3><span class="step-num">2</span> Criar Tabela de Mapeamento de Acesso</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 6.1: Tabela de mapeamento acesso x finalidade
+-- =============================================================
+
+USE ROLE LGPD_PRIVACY_ADMIN;
+
+CREATE OR REPLACE TABLE LGPD_GOVERNANCE.POLICIES.ACCESS_MAPPING (
+  ROLE_NAME       STRING   COMMENT 'Role Snowflake',
+  DEPARTMENT      STRING   COMMENT 'Departamento permitido',
+  ALLOWED_PURPOSE STRING   COMMENT 'Finalidade do acesso',
+  REGION          STRING   COMMENT 'Regiao permitida'
+);
+
+INSERT INTO LGPD_GOVERNANCE.POLICIES.ACCESS_MAPPING VALUES
+  ('HR_ANALYST',        'RH',         'GESTAO_PESSOAL',    'BRASIL'),
+  ('MARKETING_ANALYST', 'MARKETING',  'CAMPANHAS',         'BRASIL'),
+  ('FINANCE_ANALYST',   'FINANCEIRO', 'FATURAMENTO',       'BRASIL'),
+  ('LGPD_DPO',          'ALL',        'GOVERNANCA',        'ALL'),
+  ('LGPD_PRIVACY_ADMIN','ALL',        'GOVERNANCA',        'ALL');</code></pre>
+
+<h3><span class="step-num">3</span> Criar Row Access Policy</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 6.2: Row Access Policy com limitacao de finalidade
+-- =============================================================
+
+CREATE OR REPLACE ROW ACCESS POLICY
+  LGPD_GOVERNANCE.POLICIES.RAP_PURPOSE_LIMITATION
+  AS (department STRING) RETURNS BOOLEAN ->
+  -- DPO e Privacy Admin veem tudo
+  IS_ROLE_IN_SESSION('LGPD_DPO')
+  OR IS_ROLE_IN_SESSION('LGPD_PRIVACY_ADMIN')
+  -- Outros roles: somente dados do departamento autorizado
+  OR EXISTS (
+    SELECT 1
+    FROM LGPD_GOVERNANCE.POLICIES.ACCESS_MAPPING am
+    WHERE am.ROLE_NAME = CURRENT_ROLE()
+      AND (am.DEPARTMENT = department OR am.DEPARTMENT = 'ALL')
+  )
+  COMMENT = 'Limita acesso por departamento conforme principio de finalidade (Art. 6, I)';</code></pre>
+
+<h3><span class="step-num">4</span> Aplicar a Row Access Policy</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 6.3: Aplicar RAP a tabela
+-- =============================================================
+
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+  ADD ROW ACCESS POLICY LGPD_GOVERNANCE.POLICIES.RAP_PURPOSE_LIMITATION
+  ON (DEPARTAMENTO);</code></pre>
+
+<h3><span class="step-num">5</span> Testar Filtragem por Departamento</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 6.4: Validacao da RAP
+-- =============================================================
+-- Desabilitar secondary roles para testar isoladamente
+USE SECONDARY ROLES NONE;
+
+-- Como LGPD_DPO: deve ver TODAS as linhas
+USE ROLE LGPD_DPO;
+SELECT NOME, DEPARTAMENTO FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES;
+-- Resultado: 5 registros (todos os departamentos)
+
+-- Como HR_ANALYST: deve ver somente departamento RH
+USE ROLE HR_ANALYST;
+SELECT NOME, DEPARTAMENTO FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES;
+-- Resultado: 2 registros (Ana Silva e Joao Pereira - ambos RH)
+
+-- Como FINANCE_ANALYST: deve ver somente FINANCEIRO
+USE ROLE FINANCE_ANALYST;
+SELECT NOME, DEPARTAMENTO FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES;
+-- Resultado: 2 registros (Carlos Oliveira e Beatriz Lima)
+
+-- Restaurar secondary roles
+USE SECONDARY ROLES ALL;</code></pre>
+
+<div class="info-box">
+  <strong>Ordem de Avaliacao</strong>
+  O Snowflake avalia primeiro a Row Access Policy (filtragem de linhas), depois as Projection Policies (bloqueio de colunas no output), e por fim aplica as Masking Policies (mascaramento de valores). Isso significa que um HR_ANALYST vera apenas 2 linhas, e nessas linhas os dados pessoais estarao mascarados.
+</div>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- MODULE 7                                      -->
+<!-- ============================================ -->
+<h2 id="mod7"><span class="module-badge">Modulo 7</span> Politicas de Projecao (Projection Policies) <span class="lgpd-ref">Arts. 6-X, 11, 46</span></h2>
+
+<p>Projection Policies sao a <strong>terceira camada de defesa</strong> do Snowflake. Enquanto masking policies transformam valores visiveis e Row Access Policies filtram linhas, as projection policies <strong>impedem que uma coluna apareca no resultado final</strong> de uma query &mdash; implementando o principio de <strong>minimizacao de dados</strong> (Art. 6, X) da LGPD.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Aspecto</th><th>Row Access Policy</th><th>Projection Policy</th><th>Masking Policy</th></tr></thead>
+  <tbody>
+    <tr><td><strong>O que controla</strong></td><td>Quais LINHAS o usuario ve</td><td>Quais COLUNAS aparecem no resultado</td><td>Como os VALORES aparecem</td></tr>
+    <tr><td><strong>Enforcement</strong></td><td>Filtra silenciosamente</td><td>FAIL (bloqueia query) ou NULLIFY (retorna NULL)</td><td>Transforma o valor</td></tr>
+    <tr><td><strong>Uso em WHERE/JOIN</strong></td><td>N/A</td><td>Coluna utilizavel &mdash; so o output e bloqueado</td><td>Opera sobre valor mascarado</td></tr>
+    <tr><td><strong>Artigos LGPD</strong></td><td>Art. 6, I (Finalidade)</td><td>Art. 6, X (Minimizacao) / Art. 11 (Sensiveis)</td><td>Art. 46 (Seguranca)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="info-box">
+  <strong>Defesa em Profundidade &mdash; Ordem de Avaliacao no Snowflake</strong><br>
+  <code>Camada 1: Row Access Policy</code> &rarr; filtra LINHAS (quem ve quais registros)<br>
+  <code>Camada 2: Projection Policy</code> &rarr; bloqueia COLUNAS no output (quem ve quais campos)<br>
+  <code>Camada 3: Masking Policy</code> &rarr; transforma VALORES visiveis (como os dados aparecem)<br><br>
+  Na tabela CLIENTES, todas as tres camadas estao ativas simultaneamente. Uma coluna pode ter masking + projection policy ao mesmo tempo.
+</div>
+
+<h3><span class="step-num">1</span> Criar Projection Policies</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 7.2-7.3: Projection Policies
+-- =============================================================
+-- NOTA: Grants para CREATE/APPLY PROJECTION POLICY ja foram
+-- concedidos no Modulo 2. Repetidos aqui para execucao independente.
+
+USE ROLE ACCOUNTADMIN;
+GRANT CREATE PROJECTION POLICY ON SCHEMA LGPD_GOVERNANCE.POLICIES
+  TO ROLE LGPD_PRIVACY_ADMIN;
+GRANT APPLY PROJECTION POLICY ON ACCOUNT TO ROLE LGPD_PRIVACY_ADMIN;
+
+USE ROLE LGPD_PRIVACY_ADMIN;
+
+-- Policy 1: BLOQUEIO TOTAL (FAIL) para dados sensiveis (Art. 11)
+-- Se um role nao autorizado incluir a coluna no SELECT, a query FALHA.
+CREATE OR REPLACE PROJECTION POLICY LGPD_GOVERNANCE.POLICIES.PROJ_SENSITIVE_BLOCK
+  AS () RETURNS PROJECTION_CONSTRAINT ->
+  CASE
+    WHEN IS_ROLE_IN_SESSION('LGPD_DPO')
+      THEN PROJECTION_CONSTRAINT(ALLOW => true)
+    WHEN IS_ROLE_IN_SESSION('LGPD_PRIVACY_ADMIN')
+      THEN PROJECTION_CONSTRAINT(ALLOW => true)
+    ELSE PROJECTION_CONSTRAINT(ALLOW => false)
+  END
+  COMMENT = 'Bloqueia projecao de dados sensiveis (Art. 11 LGPD)';
+
+-- Policy 2: NULLIFY para PII geral (Art. 6, X)
+-- A query NAO falha, mas a coluna retorna NULL para roles nao autorizadas.
+CREATE OR REPLACE PROJECTION POLICY LGPD_GOVERNANCE.POLICIES.PROJ_PII_NULLIFY
+  AS () RETURNS PROJECTION_CONSTRAINT ->
+  CASE
+    WHEN IS_ROLE_IN_SESSION('LGPD_DPO')
+      THEN PROJECTION_CONSTRAINT(ALLOW => true)
+    WHEN IS_ROLE_IN_SESSION('LGPD_PRIVACY_ADMIN')
+      THEN PROJECTION_CONSTRAINT(ALLOW => true)
+    ELSE PROJECTION_CONSTRAINT(ALLOW => false, ENFORCEMENT => 'NULLIFY')
+  END
+  COMMENT = 'Retorna NULL para colunas PII nao autorizadas (Art. 6, X LGPD)';</code></pre>
+
+<h3><span class="step-num">2</span> Aplicar Projection Policies as Colunas</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 7.4: Aplicar Projection Policies
+-- =============================================================
+
+-- Dados sensiveis (Art. 11): bloqueio total
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  GENERO SET PROJECTION POLICY LGPD_GOVERNANCE.POLICIES.PROJ_SENSITIVE_BLOCK;
+
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  ETNIA SET PROJECTION POLICY LGPD_GOVERNANCE.POLICIES.PROJ_SENSITIVE_BLOCK;
+
+-- PII geral (Art. 6, X): retorna NULL
+ALTER TABLE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES MODIFY COLUMN
+  ENDERECO SET PROJECTION POLICY LGPD_GOVERNANCE.POLICIES.PROJ_PII_NULLIFY;</code></pre>
+
+<h3><span class="step-num">3</span> Validacao das Projection Policies</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 7.5: Validacao
+-- =============================================================
+USE SECONDARY ROLES NONE;
+
+-- Como LGPD_DPO: deve ver TODAS as colunas normalmente
+USE ROLE LGPD_DPO;
+SELECT NOME, GENERO, ETNIA, ENDERECO
+FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES LIMIT 3;
+-- Resultado esperado: dados visiveis para o DPO
+
+-- Como LGPD_ANALYST: GENERO/ETNIA BLOQUEIAM a query (FAIL)
+USE ROLE LGPD_ANALYST;
+
+-- IMPORTANTE: Esta query FALHA — descomente para testar:
+-- SELECT GENERO FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES LIMIT 1;
+-- Erro: "Projection policy does not allow column projection"
+
+-- ENDERECO retorna NULL (enforcement NULLIFY)
+SELECT NOME, ENDERECO FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES LIMIT 3;
+-- Resultado esperado: NOME = ***PROTEGIDO*** (masking), ENDERECO = NULL (projection)
+
+-- A coluna bloqueada AINDA pode ser usada em WHERE/JOIN!
+-- Projection policy so afeta o OUTPUT final (SELECT list).
+-- NOTA: O valor no WHERE e o valor MASCARADO (masking ja aplicou).
+SELECT COUNT(*) AS TOTAL
+FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+WHERE GENERO IS NOT NULL;
+-- Resultado: conta linhas — a query NAO falha
+
+USE SECONDARY ROLES ALL;</code></pre>
+
+<div class="warning-box">
+  <strong>Ponto-chave:</strong> Projection policies NAO impedem o uso da coluna em WHERE, JOIN ou GROUP BY. Elas so controlam se a coluna aparece no resultado final. Um analista pode filtrar por <code>WHERE GENERO = 'Feminino'</code> sem ver os valores individuais &mdash; ideal para analises agregadas sem exposicao de dados sensiveis.
+</div>
+
+<h3><span class="step-num">4</span> Visao Consolidada de Todas as Policies</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 7.6: Verificar todas as policies na tabela
+-- =============================================================
+
+USE ROLE ACCOUNTADMIN;
+SELECT POLICY_NAME, POLICY_KIND, REF_COLUMN_NAME, POLICY_STATUS
+FROM TABLE(EMPRESA_DEMO.INFORMATION_SCHEMA.POLICY_REFERENCES(
+  ref_entity_name => 'EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES',
+  ref_entity_domain => 'TABLE'
+))
+ORDER BY REF_COLUMN_NAME, POLICY_KIND;
+-- Resultado: masking policies + projection policies + row access policy listados</code></pre>
+
+<div class="info-box">
+  <strong>Requer Enterprise Edition:</strong> Projection policies estao disponiveis em contas Snowflake Enterprise Edition ou superior. Tag-based projection policies (associar policy a uma tag via ALTER TAG) estao em Preview.
+</div>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- MODULE 8                                      -->
+<!-- ============================================ -->
+<h2 id="mod8"><span class="module-badge">Modulo 8</span> Direitos do Titular (DSAR) <span class="lgpd-ref">Arts. 18, 19</span></h2>
+
+<p>O Art. 18 da LGPD garante ao titular diversos direitos sobre seus dados. Implementamos cada direito como um stored procedure com auditoria automatica.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Direito (Art. 18)</th><th>Descricao</th><th>Procedure</th></tr></thead>
+  <tbody>
+    <tr><td>II - Acesso</td><td>Confirmar existencia e fornecer acesso aos dados</td><td><code>DSAR_ACCESS</code></td></tr>
+    <tr><td>III - Correcao</td><td>Corrigir dados incompletos, inexatos ou desatualizados</td><td><code>DSAR_CORRECTION</code></td></tr>
+    <tr><td>V - Portabilidade</td><td>Exportar dados para outro fornecedor</td><td><code>DSAR_PORTABILITY</code></td></tr>
+    <tr><td>VI - Eliminacao</td><td>Anonimizar ou eliminar dados desnecessarios</td><td><code>DSAR_DELETE</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3><span class="step-num">1</span> Criar Tabela de Auditoria DSAR</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 8.1: Tabela de log de requisicoes DSAR
+-- =============================================================
+
+USE ROLE LGPD_DPO;
+
+CREATE OR REPLACE TABLE LGPD_GOVERNANCE.AUDIT.DSAR_LOG (
+  REQUEST_ID    STRING DEFAULT UUID_STRING(),
+  REQUEST_TYPE  STRING,
+  TITULAR_ID    STRING    COMMENT 'CPF ou identificador do titular',
+  REQUESTED_BY  STRING DEFAULT CURRENT_USER(),
+  REQUESTED_AT  TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+  STATUS        STRING DEFAULT 'PENDENTE',
+  COMPLETED_AT  TIMESTAMP_LTZ,
+  DETAILS       VARIANT
+)
+COMMENT = 'Log de requisicoes de direitos do titular (Art. 18 LGPD)';</code></pre>
+
+<h3><span class="step-num">2</span> Direito de Acesso (Art. 18, II)</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 8.2: Procedimento de Acesso aos Dados
+-- =============================================================
+-- O titular tem direito a confirmar a existencia de tratamento
+-- e obter acesso aos seus dados pessoais.
+-- Prazo: resposta simplificada imediata ou completa em 15 dias (Art. 19)
+
+CREATE OR REPLACE PROCEDURE LGPD_GOVERNANCE.AUDIT.DSAR_ACCESS(
+  TITULAR_CPF STRING
+)
+RETURNS TABLE()
+LANGUAGE SQL
+AS
+$$
+BEGIN
+  -- Registrar a requisicao no log
+  INSERT INTO LGPD_GOVERNANCE.AUDIT.DSAR_LOG
+    (REQUEST_TYPE, TITULAR_ID, STATUS, COMPLETED_AT)
+  VALUES
+    ('ACESSO', :TITULAR_CPF, 'CONCLUIDO', CURRENT_TIMESTAMP());
+
+  -- Retornar dados do titular
+  LET rs RESULTSET := (
+    SELECT ID, NOME, CPF, EMAIL, TELEFONE, DATA_NASCIMENTO,
+           ENDERECO, CIDADE, ESTADO, CEP, DATA_CADASTRO
+    FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+    WHERE CPF = :TITULAR_CPF
+  );
+  RETURN TABLE(rs);
+END;
+$$;</code></pre>
+
+<h3><span class="step-num">3</span> Direito de Correcao (Art. 18, III)</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 8.3: Procedimento de Correcao de Dados
+-- =============================================================
+
+CREATE OR REPLACE PROCEDURE LGPD_GOVERNANCE.AUDIT.DSAR_CORRECTION(
+  TITULAR_CPF   STRING,
+  CAMPO         STRING,
+  NOVO_VALOR    STRING
+)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+BEGIN
+  -- Registrar a requisicao
+  INSERT INTO LGPD_GOVERNANCE.AUDIT.DSAR_LOG
+    (REQUEST_TYPE, TITULAR_ID, DETAILS)
+  SELECT 'CORRECAO', :TITULAR_CPF,
+     OBJECT_CONSTRUCT('campo', :CAMPO, 'novo_valor', :NOVO_VALOR);
+
+  -- Executar a correcao (campos permitidos)
+  IF (:CAMPO = 'EMAIL') THEN
+    UPDATE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+    SET EMAIL = :NOVO_VALOR WHERE CPF = :TITULAR_CPF;
+  ELSEIF (:CAMPO = 'TELEFONE') THEN
+    UPDATE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+    SET TELEFONE = :NOVO_VALOR WHERE CPF = :TITULAR_CPF;
+  ELSEIF (:CAMPO = 'ENDERECO') THEN
+    UPDATE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+    SET ENDERECO = :NOVO_VALOR WHERE CPF = :TITULAR_CPF;
+  ELSE
+    RETURN 'Erro: Campo nao permitido para correcao via DSAR.';
+  END IF;
+
+  -- Atualizar status
+  UPDATE LGPD_GOVERNANCE.AUDIT.DSAR_LOG
+  SET STATUS = 'CONCLUIDO', COMPLETED_AT = CURRENT_TIMESTAMP()
+  WHERE TITULAR_ID = :TITULAR_CPF
+    AND REQUEST_TYPE = 'CORRECAO'
+    AND STATUS = 'PENDENTE';
+
+  RETURN CONCAT('Campo ', :CAMPO, ' corrigido com sucesso para o titular ', :TITULAR_CPF);
+END;
+$$;</code></pre>
+
+<h3><span class="step-num">4</span> Direito de Eliminacao / Anonimizacao (Art. 18, VI)</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 8.4: Procedimento de Eliminacao / Anonimizacao
+-- =============================================================
+-- A LGPD permite anonimizacao como alternativa a eliminacao.
+-- Dados anonimizados nao sao mais considerados dados pessoais (Art. 12).
+
+CREATE OR REPLACE PROCEDURE LGPD_GOVERNANCE.AUDIT.DSAR_DELETE(
+  TITULAR_CPF STRING
+)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+BEGIN
+  -- Verificar se o titular existe
+  LET cnt NUMBER := (
+    SELECT COUNT(*) FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+    WHERE CPF = :TITULAR_CPF
+  );
+
+  IF (:cnt = 0) THEN
+    RETURN 'Erro: Titular nao encontrado.';
+  END IF;
+
+  -- Anonimizar dados pessoais (manter registro para integridade referencial)
+  UPDATE EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+  SET
+    NOME            = 'ANONIMIZADO',
+    CPF             = 'XXX.XXX.XXX-XX',
+    EMAIL           = CONCAT('anonimizado_', ID, '@removed.lgpd'),
+    TELEFONE        = '(00) 00000-0000',
+    DATA_NASCIMENTO = DATE_FROM_PARTS(1900, 01, 01),
+    ENDERECO        = 'REMOVIDO',
+    CIDADE          = 'REMOVIDO',
+    ESTADO          = 'XX',
+    CEP             = '00000-000',
+    GENERO          = NULL,
+    ETNIA           = NULL
+  WHERE CPF = :TITULAR_CPF;
+
+  -- Atualizar tag da tabela para refletir anonimizacao
+  -- (feito manualmente pelo Data Steward se necessario)
+
+  -- Registrar no log
+  INSERT INTO LGPD_GOVERNANCE.AUDIT.DSAR_LOG
+    (REQUEST_TYPE, TITULAR_ID, STATUS, COMPLETED_AT)
+  VALUES
+    ('ELIMINACAO', :TITULAR_CPF, 'CONCLUIDO', CURRENT_TIMESTAMP());
+
+  RETURN CONCAT('Dados do titular ', :TITULAR_CPF, ' anonimizados com sucesso.');
+END;
+$$;</code></pre>
+
+<h3><span class="step-num">5</span> Direito de Portabilidade (Art. 18, V)</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 8.5: Procedimento de Portabilidade
+-- =============================================================
+-- Exporta dados do titular para um stage em formato CSV.
+-- Requer stage pre-configurado.
+
+-- Criar stage para exportacao DSAR
+CREATE STAGE IF NOT EXISTS EMPRESA_DEMO.DADOS_CLIENTES.DSAR_EXPORT
+  COMMENT = 'Stage para exportacao de dados em requisicoes de portabilidade';
+
+CREATE OR REPLACE PROCEDURE LGPD_GOVERNANCE.AUDIT.DSAR_PORTABILITY(
+  TITULAR_CPF STRING
+)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+BEGIN
+  -- Exportar dados para stage
+  COPY INTO @EMPRESA_DEMO.DADOS_CLIENTES.DSAR_EXPORT/portabilidade/
+  FROM (
+    SELECT ID, NOME, CPF, EMAIL, TELEFONE, DATA_NASCIMENTO,
+           ENDERECO, CIDADE, ESTADO, CEP, DATA_CADASTRO
+    FROM EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES
+    WHERE CPF = :TITULAR_CPF
+  )
+  FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+  OVERWRITE = TRUE
+  SINGLE = TRUE
+  HEADER = TRUE;
+
+  -- Registrar no log
+  INSERT INTO LGPD_GOVERNANCE.AUDIT.DSAR_LOG
+    (REQUEST_TYPE, TITULAR_ID, STATUS, COMPLETED_AT)
+  VALUES
+    ('PORTABILIDADE', :TITULAR_CPF, 'CONCLUIDO', CURRENT_TIMESTAMP());
+
+  RETURN CONCAT('Dados exportados para @DSAR_EXPORT/portabilidade/ para o titular ', :TITULAR_CPF);
+END;
+$$;</code></pre>
+
+<h3><span class="step-num">6</span> Testar Procedimentos DSAR</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 8.6: Validacao dos procedimentos DSAR
+-- =============================================================
+
+-- Teste: Direito de Acesso
+CALL LGPD_GOVERNANCE.AUDIT.DSAR_ACCESS('123.456.789-00');
+
+-- Teste: Direito de Correcao
+CALL LGPD_GOVERNANCE.AUDIT.DSAR_CORRECTION(
+  '123.456.789-00', 'EMAIL', 'ana.novo@email.com'
+);
+
+-- Teste: Direito de Portabilidade
+CALL LGPD_GOVERNANCE.AUDIT.DSAR_PORTABILITY('987.654.321-00');
+
+-- Verificar log de DSAR
+SELECT * FROM LGPD_GOVERNANCE.AUDIT.DSAR_LOG
+ORDER BY REQUESTED_AT DESC;</code></pre>
+
+<div class="info-box warn">
+  <strong>Prazo Legal (Art. 19)</strong>
+  A LGPD exige resposta simplificada <strong>imediatamente</strong> e resposta completa em ate <strong>15 dias</strong>. Documente o SLA interno e configure alertas para requisicoes pendentes.
+</div>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- MODULE 8                                      -->
+<!-- ============================================ -->
+<h2 id="mod9"><span class="module-badge">Modulo 9</span> Monitoramento, Auditoria e Conformidade <span class="lgpd-ref">Arts. 37-38, 48, 50</span></h2>
+
+<p>Monitoramento continuo e essencial para demonstrar conformidade com a LGPD. Este modulo cobre auditoria de acesso, relatorios de cobertura, e alertas.</p>
+
+<h3><span class="step-num">1</span> Auditoria de Acesso a Dados Pessoais</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 9.1: Quem acessou dados pessoais nos ultimos 30 dias?
+-- =============================================================
+-- Usa ACCESS_HISTORY + QUERY_HISTORY para rastrear acessos (Art. 37)
+-- NOTA: ACCESS_HISTORY nao tem ROLE_NAME; obter via JOIN com QUERY_HISTORY
+
+USE ROLE ACCOUNTADMIN;
+
+SELECT
+  ah.USER_NAME,
+  qh.ROLE_NAME,
+  ah.QUERY_START_TIME,
+  boa.VALUE:objectName::STRING AS OBJECT_ACCESSED,
+  boa.VALUE:objectDomain::STRING AS OBJECT_TYPE,
+  ah.QUERY_ID
+FROM SNOWFLAKE.ACCOUNT_USAGE.ACCESS_HISTORY ah
+  JOIN SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY qh
+    ON ah.QUERY_ID = qh.QUERY_ID
+  ,LATERAL FLATTEN(input => ah.BASE_OBJECTS_ACCESSED) boa
+WHERE ah.QUERY_START_TIME >= DATEADD('day', -30, CURRENT_TIMESTAMP())
+  AND boa.VALUE:objectName::STRING ILIKE '%CLIENTES%'
+ORDER BY ah.QUERY_START_TIME DESC
+LIMIT 100;</code></pre>
+
+<h3><span class="step-num">2</span> Relatorio de Cobertura de Tags LGPD</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 9.2: Quais tabelas TEM e quais NAO TEM tags LGPD?
+-- =============================================================
+
+SELECT
+  t.TABLE_CATALOG AS DATABASE_NAME,
+  t.TABLE_SCHEMA  AS SCHEMA_NAME,
+  t.TABLE_NAME,
+  t.ROW_COUNT,
+  COALESCE(tr.TAG_VALUE, '*** SEM TAG ***') AS LGPD_CATEGORY,
+  CASE
+    WHEN tr.TAG_VALUE IS NOT NULL THEN 'CONFORME'
+    ELSE 'PENDENTE'
+  END AS STATUS_CONFORMIDADE
+FROM SNOWFLAKE.ACCOUNT_USAGE.TABLES t
+LEFT JOIN SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES tr
+  ON t.TABLE_CATALOG = tr.OBJECT_DATABASE
+  AND t.TABLE_SCHEMA = tr.OBJECT_SCHEMA
+  AND t.TABLE_NAME = tr.OBJECT_NAME
+  AND tr.TAG_NAME = 'LGPD_DATA_CATEGORY'
+  AND tr.DOMAIN = 'TABLE'
+WHERE t.DELETED IS NULL
+  AND t.TABLE_SCHEMA != 'INFORMATION_SCHEMA'
+ORDER BY STATUS_CONFORMIDADE DESC, t.TABLE_CATALOG, t.TABLE_SCHEMA;</code></pre>
+
+<h3><span class="step-num">3</span> Relatorio de Cobertura de Masking Policies</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 9.3: Colunas com e sem masking policies
+-- =============================================================
+
+SELECT
+  pr.REF_DATABASE_NAME AS DATABASE_NAME,
+  pr.REF_SCHEMA_NAME   AS SCHEMA_NAME,
+  pr.REF_ENTITY_NAME   AS TABLE_NAME,
+  pr.REF_COLUMN_NAME   AS COLUMN_NAME,
+  pr.POLICY_NAME,
+  pr.POLICY_STATUS,
+  COALESCE(pr.TAG_NAME, 'DIRETA') AS APLICACAO
+FROM SNOWFLAKE.ACCOUNT_USAGE.POLICY_REFERENCES pr
+WHERE pr.POLICY_KIND = 'MASKING_POLICY'
+ORDER BY pr.REF_DATABASE_NAME, pr.REF_ENTITY_NAME, pr.REF_COLUMN_NAME;</code></pre>
+
+<h3><span class="step-num">4</span> Inventario de Projection Policies</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 9.3b: Inventario de Projection Policies
+-- =============================================================
+
+-- Todas as projection policies ativas na conta
+SELECT
+  pp.POLICY_NAME,
+  pp.POLICY_CATALOG AS POLICY_DATABASE,
+  pp.POLICY_SCHEMA,
+  pp.CREATED,
+  pp.POLICY_COMMENT
+FROM SNOWFLAKE.ACCOUNT_USAGE.PROJECTION_POLICIES pp
+WHERE pp.DELETED IS NULL
+ORDER BY pp.CREATED;
+
+-- Colunas protegidas por projection policies na tabela CLIENTES
+SELECT POLICY_NAME, POLICY_KIND, REF_COLUMN_NAME, POLICY_STATUS
+FROM TABLE(EMPRESA_DEMO.INFORMATION_SCHEMA.POLICY_REFERENCES(
+  ref_entity_name => 'EMPRESA_DEMO.DADOS_CLIENTES.CLIENTES',
+  ref_entity_domain => 'TABLE'
+))
+WHERE POLICY_KIND = 'PROJECTION_POLICY'
+ORDER BY REF_COLUMN_NAME;</code></pre>
+
+<h3><span class="step-num">5</span> Monitorar Requisicoes DSAR Pendentes</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 9.4: Requisicoes DSAR pendentes (SLA 15 dias)
+-- =============================================================
+
+SELECT
+  REQUEST_ID,
+  REQUEST_TYPE,
+  TITULAR_ID,
+  REQUESTED_BY,
+  REQUESTED_AT,
+  STATUS,
+  DATEDIFF('day', REQUESTED_AT, CURRENT_TIMESTAMP()) AS DIAS_ABERTO,
+  CASE
+    WHEN DATEDIFF('day', REQUESTED_AT, CURRENT_TIMESTAMP()) > 15
+      THEN 'ATRASADO'
+    WHEN DATEDIFF('day', REQUESTED_AT, CURRENT_TIMESTAMP()) > 10
+      THEN 'ATENCAO'
+    ELSE 'DENTRO DO PRAZO'
+  END AS SLA_STATUS
+FROM LGPD_GOVERNANCE.AUDIT.DSAR_LOG
+WHERE STATUS = 'PENDENTE'
+ORDER BY REQUESTED_AT ASC;</code></pre>
+
+<h3><span class="step-num">6</span> Alerta para Acesso Massivo a Dados Pessoais</h3>
+<pre><code class="language-sql">-- =============================================================
+-- MODULO 9.5: Alerta para acessos anomalos (Art. 48 - Incidentes)
+-- =============================================================
+-- Detecta consultas que retornam mais de 10.000 registros
+-- de tabelas com dados pessoais
+
+-- Pre-requisito: criar notification integration para email
+USE ROLE ACCOUNTADMIN;
+CREATE OR REPLACE NOTIFICATION INTEGRATION LGPD_NOTIFICATIONS
+  TYPE = EMAIL
+  ENABLED = TRUE
+  ALLOWED_RECIPIENTS = ($LGPD_DPO_EMAIL);
+
+USE ROLE LGPD_DPO;
+
+CREATE OR REPLACE ALERT LGPD_GOVERNANCE.AUDIT.ALERT_MASS_DATA_ACCESS
+  WAREHOUSE = LGPD_TRAINING_WH
+  SCHEDULE = 'USING CRON 0 */6 * * * America/Sao_Paulo'
+  IF (EXISTS (
+    SELECT 1
+    FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+    WHERE EXECUTION_STATUS = 'SUCCESS'
+      AND ROWS_PRODUCED > 10000
+      AND QUERY_START_TIME >= DATEADD('hour', -6, CURRENT_TIMESTAMP())
+      AND (QUERY_TEXT ILIKE '%clientes%' OR QUERY_TEXT ILIKE '%dados_pessoais%')
+  ))
+  THEN
+    CALL SYSTEM$SEND_EMAIL(
+      'LGPD_NOTIFICATIONS',
+      $LGPD_DPO_EMAIL,
+      'ALERTA LGPD: Acesso massivo a dados pessoais detectado',
+      'Uma consulta retornou mais de 10.000 registros de tabelas contendo dados pessoais nas ultimas 6 horas. Verifique o ACCESS_HISTORY para detalhes.'
+    );
+
+-- Ativar o alerta
+ALTER ALERT LGPD_GOVERNANCE.AUDIT.ALERT_MASS_DATA_ACCESS RESUME;</code></pre>
+
+<h3><span class="step-num">6</span> Governance Dashboard no Snowsight</h3>
+<div class="info-box">
+  <strong>Acesso via Snowsight</strong>
+  O DPO pode acessar o <strong>Governance Dashboard</strong> no Snowsight em:
+  <br/><code>Governance &amp; Security &rarr; Tags &amp; Policies</code>
+  <br/>Este dashboard mostra:
+  <ul style="margin:4px 0 0; padding-left:18px;">
+    <li><strong>Coverage:</strong> percentual de tabelas/colunas com tags e policies</li>
+    <li><strong>Prevalence:</strong> tags e policies mais utilizadas</li>
+    <li><strong>Tagged Objects:</strong> lista detalhada de objetos protegidos</li>
+  </ul>
+  <br/>Requisitos: role com <code>SNOWFLAKE.GOVERNANCE_VIEWER</code> e <code>SNOWFLAKE.OBJECT_VIEWER</code> (ja concedidos ao LGPD_DPO no Modulo 2).
+</div>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- GLOSSARY                                      -->
+<!-- ============================================ -->
+<h2 id="glossary"><span class="module-badge">Ref.</span> Glossario LGPD</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Termo</th><th>Artigo</th><th>Definicao</th></tr></thead>
+  <tbody>
+    <tr><td class="glossary-term">ANPD</td><td>Art. 55-A</td><td>Autoridade Nacional de Protecao de Dados &mdash; orgao responsavel por fiscalizar o cumprimento da LGPD</td></tr>
+    <tr><td class="glossary-term">Anonimizacao</td><td>Art. 5, XI</td><td>Processo por meio do qual um dado perde a possibilidade de associacao a um individuo</td></tr>
+    <tr><td class="glossary-term">Consentimento</td><td>Art. 5, XII</td><td>Manifestacao livre, informada e inequivoca pela qual o titular concorda com o tratamento</td></tr>
+    <tr><td class="glossary-term">Controlador</td><td>Art. 5, VI</td><td>Pessoa que toma as decisoes referentes ao tratamento de dados pessoais</td></tr>
+    <tr><td class="glossary-term">Dado Pessoal</td><td>Art. 5, I</td><td>Informacao relacionada a pessoa natural identificada ou identificavel</td></tr>
+    <tr><td class="glossary-term">Dado Pessoal Sensivel</td><td>Art. 5, II</td><td>Dado sobre origem racial/etnica, saude, biometria, genetica, vida sexual, conviccao religiosa, opiniao politica, filiacao sindical</td></tr>
+    <tr><td class="glossary-term">DSAR</td><td>Art. 18</td><td>Data Subject Access Request &mdash; requisicao do titular exercendo seus direitos</td></tr>
+    <tr><td class="glossary-term">Encarregado (DPO)</td><td>Art. 41</td><td>Pessoa indicada para comunicacao entre controlador, titulares e ANPD</td></tr>
+    <tr><td class="glossary-term">Finalidade</td><td>Art. 6, I</td><td>Principio que exige que o tratamento seja realizado para propositos legitimos e especificos</td></tr>
+    <tr><td class="glossary-term">Operador</td><td>Art. 5, VII</td><td>Pessoa que realiza o tratamento em nome do controlador</td></tr>
+    <tr><td class="glossary-term">RIPD</td><td>Art. 38</td><td>Relatorio de Impacto a Protecao de Dados Pessoais</td></tr>
+    <tr><td class="glossary-term">Titular</td><td>Art. 5, V</td><td>Pessoa natural a quem se referem os dados pessoais</td></tr>
+    <tr><td class="glossary-term">Tratamento</td><td>Art. 5, X</td><td>Toda operacao realizada com dados pessoais (coleta, producao, recepcao, classificacao, utilizacao, acesso, etc.)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ============================================ -->
+<!-- REFERENCE TABLE                               -->
+<!-- ============================================ -->
+<h2 id="ref-table"><span class="module-badge">Ref.</span> Tabela: LGPD &rarr; Snowflake</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Artigo LGPD</th><th>Requisito</th><th>Recurso Snowflake</th><th>Modulo</th></tr></thead>
+  <tbody>
+    <tr><td>Art. 5</td><td>Definicao de dados pessoais e sensiveis</td><td>CLASSIFY, System Tags (SEMANTIC_CATEGORY)</td><td><a href="#mod3">3</a></td></tr>
+    <tr><td>Art. 6, I</td><td>Principio de finalidade</td><td>Row Access Policies + Mapping Table</td><td><a href="#mod6">6</a></td></tr>
+    <tr><td>Art. 6, X</td><td>Principio de prevencao</td><td>Masking Policies, Tag-based Masking</td><td><a href="#mod5">5</a></td></tr>
+    <tr><td>Art. 7</td><td>Bases legais para tratamento</td><td>Tag LGPD_BASE_LEGAL com ALLOWED_VALUES</td><td><a href="#mod4">4</a></td></tr>
+    <tr><td>Art. 11</td><td>Tratamento de dados sensiveis</td><td>Tag LGPD_DATA_CATEGORY = DADO_PESSOAL_SENSIVEL</td><td><a href="#mod4">4</a></td></tr>
+    <tr><td>Art. 15-16</td><td>Termino e retencao de dados</td><td>Tag LGPD_RETENCAO + Time Travel</td><td><a href="#mod4">4</a></td></tr>
+    <tr><td>Art. 18, II</td><td>Direito de acesso</td><td>Procedure DSAR_ACCESS</td><td><a href="#mod7">7</a></td></tr>
+    <tr><td>Art. 18, III</td><td>Direito de correcao</td><td>Procedure DSAR_CORRECTION</td><td><a href="#mod7">7</a></td></tr>
+    <tr><td>Art. 18, V</td><td>Direito de portabilidade</td><td>Procedure DSAR_PORTABILITY + COPY INTO</td><td><a href="#mod7">7</a></td></tr>
+    <tr><td>Art. 18, VI</td><td>Direito de eliminacao</td><td>Procedure DSAR_DELETE (anonimizacao)</td><td><a href="#mod7">7</a></td></tr>
+    <tr><td>Art. 37-38</td><td>RIPD (Relatorio de Impacto)</td><td>Governance Dashboard, TAG_REFERENCES, POLICY_REFERENCES</td><td><a href="#mod8">8</a></td></tr>
+    <tr><td>Art. 41</td><td>Encarregado (DPO)</td><td>Role LGPD_DPO com privilegios de governanca</td><td><a href="#mod2">2</a></td></tr>
+    <tr><td>Art. 46</td><td>Medidas de seguranca</td><td>Encryption (AES-256/TLS), RBAC, Masking, RAP</td><td><a href="#mod2">2</a>, <a href="#mod5">5</a></td></tr>
+    <tr><td>Art. 48</td><td>Comunicacao de incidentes</td><td>Alert + ACCESS_HISTORY + QUERY_HISTORY</td><td><a href="#mod8">8</a></td></tr>
+    <tr><td>Art. 50</td><td>Boas praticas de governanca</td><td>Governance Dashboard (Snowsight), Trust Center</td><td><a href="#mod8">8</a></td></tr>
+  </tbody>
+</table>
+</div>
+
+<a href="#top" class="back-to-top">&uarr; Voltar ao topo</a>
+
+<!-- ============================================ -->
+<!-- FOOTER                                        -->
+<!-- ============================================ -->
+<footer>
+  <p><strong>LGPD + Snowflake: Guia de Conformidade</strong></p>
+  <p>Este material e fornecido para fins educacionais. Consulte sua equipe juridica para validacao da conformidade com a LGPD aplicavel a sua organizacao.</p>
+  <p>Snowflake &bull; Enterprise Edition &bull; Gerado em Outubro 2026</p>
+</footer>
+
+</main>
+
+<!-- Libraries -->
+<script src="/libs/highlight.js@11.10.0/highlight.min.js"></script>
+<script src="/libs/mermaid@10.9.6/mermaid.min.js"></script>
+<script>
+  // Initialize syntax highlighting
+  document.querySelectorAll('pre code').forEach(function(block) {
+    hljs.highlightElement(block);
+  });
+
+  // Initialize Mermaid diagrams
+  mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: 'strict',
+    theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
+  });
+
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+    anchor.addEventListener('click', function(e) {
+      var targetId = this.getAttribute('href').substring(1);
+      var target = document.getElementById(targetId);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  // Sidebar scroll-spy: highlight active section
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.sidebar nav a'));
+    var targets = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+    function onScroll() {
+      var idx = -1, y = window.scrollY + 120;
+      for (var i = 0; i < targets.length; i++) {
+        if (targets[i] && targets[i].offsetTop <= y) idx = i;
+      }
+      links.forEach(function (a, i) { a.classList.toggle('active', i === idx); });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+
+</body>
+</html>
